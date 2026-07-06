@@ -1,0 +1,144 @@
+table: "bigquery-public-data.cfpb_complaints.complaint_database"
+
+columns:
+  - name: complaint_id
+    type: INT
+    description: Unique complaint key
+  - name: date_received
+    type: DATE
+    description: Date CFPB received the complaint
+  - name: date_sent_to_company
+    type: DATE
+    description: Date forwarded to the company
+  - name: product
+    type: STRING
+    description: Top-level product category (e.g. "Mortgage")
+  - name: subproduct
+    type: STRING
+    description: Sub-category within product
+  - name: issue
+    type: STRING
+    description: Issue type reported by consumer
+  - name: subissue
+    type: STRING
+    description: Sub-issue
+  - name: company_name
+    type: STRING
+    description: Legal company name stored in ALL-CAPS (see rules)
+  - name: state
+    type: STRING
+    description: Two-letter US state abbreviation
+  - name: zip_code
+    type: STRING
+    description: Consumer ZIP code
+  - name: consumer_complaint_narrative
+    type: STRING
+    description: Free-text narrative; NULL for ~75% of rows (opt-in only)
+  - name: company_public_response
+    type: STRING
+    description: Company's public-facing response text
+  - name: company_response_to_consumer
+    type: STRING
+    description: Outcome, e.g. "Closed with monetary relief"
+  - name: timely_response
+    type: BOOL
+    description: Whether company responded within CFPB deadline
+  - name: consumer_disputed
+    type: BOOL
+    description: Deprecated and mostly null for recent years — do not use
+  - name: submitted_via
+    type: STRING
+    description: Submission channel (e.g. "Web", "Phone")
+  - name: tags
+    type: STRING
+    description: Consumer flags such as "Servicemember", "Older American"
+  - name: consumer_consent_provided
+    type: STRING
+    description: Whether consumer opted in to share their narrative
+
+rules:
+  - >
+    Company names are stored as ALL-CAPS legal names (e.g. "WELLS FARGO & COMPANY").
+    Always match companies with: UPPER(company_name) LIKE '%KEYWORD%'
+    Never use exact equality for company names from plain-language queries.
+  - >
+    Product/issue labels changed in April 2017 (taxonomy drift).
+    For generic product references (e.g. "credit cards", "credit reporting"),
+    use LIKE or OR conditions covering both old and new labels.
+    Example for credit reporting: (product LIKE '%Credit reporting%')
+  - >
+    consumer_complaint_narrative is NULL for ~75% of rows.
+    Any query about complaints "mentioning" or "containing" specific text
+    MUST include: consumer_complaint_narrative IS NOT NULL
+  - >
+    Return only the SQL query — no explanation, no markdown fences, no commentary.
+    The query must start with SELECT.
+  - >
+    Always include LIMIT (default 100) for queries that return multiple rows,
+    unless the question asks for an aggregate (COUNT, SUM, AVG) with no row-level output.
+  - >
+    Pin time-sensitive queries with date_received <= '2024-12-31' unless the
+    question specifies a different date range, to avoid live-table drift.
+
+value_hints:
+  product_labels:
+    - Mortgage
+    - "Credit reporting, credit repair services, or other personal consumer reports"
+    - Credit reporting  # pre-April 2017 label
+    - Debt collection
+    - Credit card or prepaid card
+    - Credit card  # pre-April 2017 label
+    - Checking or savings account
+    - Bank account or service  # pre-April 2017 label
+    - Student loan
+    - Vehicle loan or lease
+    - Payday loan, title loan, or personal loan
+    - Payday loan  # pre-April 2017 label
+    - Money transfer, virtual currency, or money service
+    - Money transfers  # pre-April 2017 label
+    - Other financial service
+    - Virtual currency
+  tags:
+    - Servicemember
+    - Older American
+    - "Older American, Servicemember"
+
+examples:
+  - question: How many complaints were received in 2023?
+    sql: |
+      SELECT COUNT(*) AS complaint_count
+      FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+      WHERE date_received BETWEEN '2023-01-01' AND '2023-12-31'
+
+  - question: Which products have the most complaints? Show top 5.
+    sql: |
+      SELECT product, COUNT(*) AS complaint_count
+      FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+      WHERE date_received <= '2024-12-31'
+      GROUP BY product
+      ORDER BY complaint_count DESC
+      LIMIT 5
+
+  - question: How many complaints were filed against Wells Fargo in 2022?
+    sql: |
+      SELECT COUNT(*) AS complaint_count
+      FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+      WHERE UPPER(company_name) LIKE '%WELLS FARGO%'
+        AND date_received BETWEEN '2022-01-01' AND '2022-12-31'
+
+  - question: What share of complaints received a monetary relief response, by state? Show top 10 states.
+    sql: |
+      SELECT
+        state,
+        COUNT(*) AS total,
+        COUNTIF(company_response_to_consumer = 'Closed with monetary relief') AS monetary_relief,
+        ROUND(
+          COUNTIF(company_response_to_consumer = 'Closed with monetary relief') * 100.0 / COUNT(*),
+          2
+        ) AS relief_pct
+      FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+      WHERE date_received <= '2024-12-31'
+        AND state IS NOT NULL
+      GROUP BY state
+      ORDER BY total DESC
+      LIMIT 10

@@ -1,0 +1,88 @@
+- id: filters_1
+  tier: filters
+  question: "How many complaints were received in 2023?"
+  gold_sql: |
+    SELECT COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE date_received BETWEEN '2023-01-01' AND '2023-12-31'
+
+- id: filters_2
+  tier: filters
+  question: "How many complaints were submitted via phone in 2022?"
+  gold_sql: |
+    SELECT COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE submitted_via = 'Phone'
+      AND date_received BETWEEN '2022-01-01' AND '2022-12-31'
+
+- id: grouping_1
+  tier: grouping
+  question: "Which 5 products have the most complaints overall?"
+  gold_sql: |
+    SELECT product, COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE date_received <= '2024-12-31'
+    GROUP BY product
+    ORDER BY complaint_count DESC
+    LIMIT 5
+
+- id: grouping_2
+  tier: grouping
+  question: "Which 10 states had the most complaints in 2023?"
+  gold_sql: |
+    SELECT state, COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE date_received BETWEEN '2023-01-01' AND '2023-12-31'
+      AND state IS NOT NULL
+    GROUP BY state
+    ORDER BY complaint_count DESC
+    LIMIT 10
+
+- id: advanced_1
+  tier: advanced
+  question: "What percentage of complaints received a timely response in 2023?"
+  gold_sql: |
+    SELECT
+      ROUND(COUNTIF(timely_response = TRUE) * 100.0 / COUNT(*), 2) AS timely_pct
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE date_received BETWEEN '2023-01-01' AND '2023-12-31'
+
+- id: advanced_2
+  tier: advanced
+  question: "How many complaints were filed each year? Show all years in chronological order."
+  gold_sql: |
+    SELECT
+      EXTRACT(YEAR FROM date_received) AS year,
+      COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE date_received <= '2024-12-31'
+    GROUP BY year
+    ORDER BY year
+
+- id: traps_1
+  tier: traps
+  question: "How many total complaints have been filed against Equifax?"
+  gold_sql: |
+    SELECT COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE UPPER(company_name) LIKE '%EQUIFAX%'
+      AND date_received <= '2024-12-31'
+
+- id: traps_2
+  tier: traps
+  question: "How many complaints mention the word 'fraud' in their narrative?"
+  gold_sql: |
+    SELECT COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE consumer_complaint_narrative IS NOT NULL
+      AND LOWER(consumer_complaint_narrative) LIKE '%fraud%'
+      AND date_received <= '2024-12-31'
+
+- id: traps_3
+  tier: traps
+  question: "How many credit reporting complaints were filed in 2020?"
+  gold_sql: |
+    SELECT COUNT(*) AS complaint_count
+    FROM `bigquery-public-data.cfpb_complaints.complaint_database`
+    WHERE (product LIKE '%Credit reporting%')
+      AND date_received BETWEEN '2020-01-01' AND '2020-12-31'
