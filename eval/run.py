@@ -42,7 +42,7 @@ def _results_match(gold: list[dict], generated: list[dict]) -> bool:
     return _normalize_rows(gold) == _normalize_rows(generated)
 
 
-def eval_one(q: dict, bq_client, llm_client) -> dict:
+def eval_one(q: dict, bq_client, llm_model) -> dict:
     result = {
         "id": q["id"],
         "tier": q["tier"],
@@ -58,7 +58,7 @@ def eval_one(q: dict, bq_client, llm_client) -> dict:
         gold_rows, _ = bq.execute(bq_client, q["gold_sql"].strip())
         result["gold_rows"] = gold_rows
 
-        agent_result = agent_run(q["question"], bq_client, llm_client)
+        agent_result = agent_run(q["question"], bq_client, llm_model)
         result["gen_sql"] = agent_result["sql"]
         result["gen_rows"] = agent_result["rows"]
 
@@ -131,7 +131,7 @@ def main() -> None:
         sys.exit(1)
 
     bq_client = bq.get_client()
-    llm_client = llm.get_client()
+    llm_model = llm.get_llm()
 
     label = f"tier={tier_filter}" if tier_filter else "all tiers"
     print(f"Running {len(questions)} question(s) [{label}]...\n")
@@ -140,7 +140,7 @@ def main() -> None:
     for i, q in enumerate(questions, 1):
         print(f"[{i}/{len(questions)}] {q['id']} ...", end=" ", flush=True)
         t0 = time.time()
-        result = eval_one(q, bq_client, llm_client)
+        result = eval_one(q, bq_client, llm_model)
         elapsed = time.time() - t0
         status = "PASS" if result["passed"] else "FAIL"
         if result["error"]:

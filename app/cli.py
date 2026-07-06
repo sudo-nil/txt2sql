@@ -15,12 +15,12 @@ def main() -> None:
 
     question = sys.argv[1]
     bq_client = bq.get_client()
-    llm_client = llm.get_client()
+    llm_model = llm.get_llm()
 
     print(f"\nQuestion: {question}\n")
     print("Generating SQL...")
 
-    result = run(question, bq_client, llm_client)
+    result = run(question, bq_client, llm_model)
     sql = result["sql"]
     rows = result["rows"]
     bytes_scanned = result["bytes_scanned"]

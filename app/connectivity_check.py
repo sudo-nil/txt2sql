@@ -24,8 +24,8 @@ def main() -> None:
     print(f"CFPB dry-run OK: ~{gb:.2f} GB estimated ({estimated:,} bytes)\n")
 
     # Vertex AI Gemini ping
-    llm_client = llm.get_client()
-    print(llm.ping(llm_client))
+    llm_model = llm.get_llm()
+    print(llm.ping(llm_model))
 
     print("\n=== All checks passed ===")
 
